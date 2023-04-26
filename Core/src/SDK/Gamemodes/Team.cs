@@ -40,7 +40,8 @@ namespace LabFusion.SDK.Gamemodes
         public Texture2D Logo { get; private set; }
         public List<TeamLogoInstance> LogoInstances { get; private set; }
 
-        public int TeamScore { get; }
+        public int TeamScore { get; private set; }
+        public float TeamMultiplier { get; private set; }
 
         public List<PlayerId> Players { get; }
 
