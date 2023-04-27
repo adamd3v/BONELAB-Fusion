@@ -64,6 +64,11 @@ namespace LabFusion.Core.Gamemodes
             }
         }
 
+        public bool RegisterFlag(string teamName)
+        {
+            return true;
+        }
+
         public override void OnGamemodeRegistered()
         {
             base.OnGamemodeRegistered();

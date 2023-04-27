@@ -181,6 +181,8 @@
     <Compile Include="Core\dependencies\Facepunch.Steamworks\Utility\SteamInterface.cs" />
     <Compile Include="Core\dependencies\Facepunch.Steamworks\Utility\Utf8String.cs" />
     <Compile Include="Core\dependencies\Facepunch.Steamworks\Utility\Utility.cs" />
+    <Compile Include="Core\marrow-integration\Runtime\Gamemodes\Capture The Flag\CTFFlagProxy.cs" />
+    <Compile Include="Core\marrow-integration\Runtime\Gamemodes\Capture The Flag\CTFProxy.cs" />
     <Compile Include="Core\marrow-integration\Runtime\Gamemodes\Entangled\EntangledProxy.cs" />
     <Compile Include="Core\marrow-integration\Runtime\Gamemodes\GamemodeEndEvent.cs" />
     <Compile Include="Core\marrow-integration\Runtime\Gamemodes\GamemodeStartEvent.cs" />
@@ -412,8 +414,11 @@
     <Compile Include="Core\src\Patching\Patches\Trigger\MirrorPatches.cs" />
     <Compile Include="Core\src\Representation\FusionBlessings.cs" />
     <Compile Include="Core\src\Representation\FusionMasterList.cs" />
+    <Compile Include="Core\src\SDK\Gamemodes\Built In\CaptureTheFlag.cs" />
+    <Compile Include="Core\src\SDK\Gamemodes\Built In\CTFFlag.cs" />
     <Compile Include="Core\src\SDK\Gamemodes\Team.cs" />
     <Compile Include="Core\src\SDK\Gamemodes\TeamLogoInstance.cs" />
+    <Compile Include="Core\src\SDK\Gamemodes\TeamManager.cs" />
     <Compile Include="Core\src\SDK\Points\AccessoryItem.cs" />
     <Compile Include="Core\src\SDK\Points\AccessoryItemHelper.cs" />
     <Compile Include="Core\src\SDK\Points\BitEconomy.cs" />
