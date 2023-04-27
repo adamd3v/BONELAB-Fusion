@@ -15,24 +15,11 @@ namespace LabFusion.SDK.Gamemodes
 {
     public class TeamDeathmatch : Gamemode
     {
-        private const int _minPlayerBits = 30;
-        private const int _maxPlayerBits = 250;
-
         public static TeamDeathmatch Instance { get; private set; }
 
         public TeamManager TeamManager { get; private set; }
 
         public bool OverrideValues { get => _overrideValues; }
-
-        protected string _lavaGangOverride = null;
-        protected string _sabrelakeOverride = null;
-
-        protected Texture2D _lavaGangLogoOverride = null;
-        protected Texture2D _sabrelakeLogoOverride = null;
-
-        private const int _defaultMinutes = 3;
-        private const int _minMinutes = 2;
-        private const int _maxMinutes = 60;
 
         // Prefix
         public const string DefaultPrefix = "FusionTDM";
@@ -50,6 +37,13 @@ namespace LabFusion.SDK.Gamemodes
 
         public override bool PreventNewJoins => !_enabledLateJoining;
 
+        private const int _minPlayerBits = 30;
+        private const int _maxPlayerBits = 250;
+
+        private const int _defaultMinutes = 3;
+        private const int _minMinutes = 2;
+        private const int _maxMinutes = 60;
+
         private float _timeOfStart;
         private bool _oneMinuteLeft;
 
@@ -57,9 +51,6 @@ namespace LabFusion.SDK.Gamemodes
 
         private int _savedMinutes = _defaultMinutes;
         private int _totalMinutes = _defaultMinutes;
-
-        private Team _lastTeam = null;
-        private Team _localTeam = null;
 
         private string _avatarOverride = null;
         private float? _vitalityOverride = null;
@@ -107,6 +98,17 @@ namespace LabFusion.SDK.Gamemodes
             }
         }
 
+        public float GetTimeElapsed()
+        {
+            return Time.realtimeSinceStartup - _timeOfStart;
+        }
+
+        public float GetMinutesLeft()
+        {
+            float elapsed = GetTimeElapsed();
+            return _totalMinutes - (elapsed / 60f);
+        }
+
         public override void OnGamemodeRegistered()
         {
             base.OnGamemodeRegistered();
@@ -137,16 +139,6 @@ namespace LabFusion.SDK.Gamemodes
             MultiplayerHooking.OnPlayerLeave -= OnPlayerLeave;
             MultiplayerHooking.OnPlayerAction -= OnPlayerAction;
             FusionOverrides.OnValidateNametag -= OnValidateNametag;
-        }
-
-        protected bool OnValidateNametag(PlayerId id)
-        {
-            if (!IsActive())
-            {
-                return true;
-            }
-
-            return GetTeamFromMember(id) == _localTeam;
         }
 
         public override void OnMainSceneInitialized()
@@ -192,38 +184,14 @@ namespace LabFusion.SDK.Gamemodes
             }
         }
 
-        private int GetRewardedBits()
+        protected bool OnValidateNametag(PlayerId id)
         {
-            // Change the max bit count based on player count
-            int playerCount = PlayerIdManager.PlayerCount - 1;
-
-            // 10 and 100 are the min and max values for the max bit count
-            float playerPercent = (float)playerCount / 4f;
-            int maxBits = Mathf.FloorToInt(Mathf.Lerp(_minPlayerBits, _maxPlayerBits, playerPercent));
-            int maxRand = maxBits / 10;
-
-            // Get the scores
-            int score = GetScoreFromTeam(_localTeam);
-            int totalScore = GetTotalScore();
-
-            // Prevent divide by 0
-            if (totalScore <= 0)
-                return 0;
-
-            float percent = Mathf.Clamp01((float)score / (float)totalScore);
-            int reward = Mathf.FloorToInt((float)maxBits * percent);
-
-            // Add randomness
-            reward += UnityEngine.Random.Range(-maxRand, maxRand);
-
-            // Make sure the reward isn't invalid
-            if (reward.IsNaN())
+            if (!IsActive())
             {
-                FusionLogger.ErrorLine("Prevented attempt to give invalid bit reward. Please notify a Fusion developer and send them your log.");
-                return 0;
+                return true;
             }
 
-            return reward;
+            return TeamManager.GetTeamFromMember(id) == TeamManager.LocalTeam;
         }
 
         protected void OnPlayerAction(PlayerId player, PlayerActionType type, PlayerId otherPlayer = null)
@@ -245,12 +213,12 @@ namespace LabFusion.SDK.Gamemodes
                     return;
                 }
 
-                var killerTeam = GetTeamFromMember(otherPlayer);
-                var killedTeam = GetTeamFromMember(player);
+                var killerTeam = TeamManager.GetTeamFromMember(otherPlayer);
+                var killedTeam = TeamManager.GetTeamFromMember(player);
 
                 if (killerTeam != killedTeam)
                 {
-                    IncrementScore(killerTeam);
+                    TeamManager.IncrementScore(killerTeam);
                 }
             }
         }
@@ -278,8 +246,8 @@ namespace LabFusion.SDK.Gamemodes
 
             if (NetworkInfo.IsServer)
             {
-                ResetTeams();
-                SetTeams();
+                TeamManager.ResetTeams();
+                TeamManager.SetTeams();
             }
 
             _timeOfStart = Time.realtimeSinceStartup;
@@ -335,16 +303,16 @@ namespace LabFusion.SDK.Gamemodes
                 message += $"Third Place: {thirdPlaceTeam.TeamName} (Score: {thirdTeamScore}) \n";
             }
 
-            bool tied = leaders.All((team) => team.TeamScore == GetScoreFromTeam(winningTeam));
+            bool tied = leaders.All((team) => team.TeamScore == TeamManager.GetScoreFromTeam(winningTeam));
 
             if (tied)
             {
                 message += "Tie! (All teams scored the same score!)";
-                OnTeamTied();
+                TeamManager.OnTeamTied();
             }
             else
             {
-                message += GetTeamStatus(winningTeam);
+                message += TeamManager.GetTeamStatus(winningTeam);
             }
 
             // Show the winners in a notification
@@ -371,7 +339,7 @@ namespace LabFusion.SDK.Gamemodes
             FusionPlayer.SetAmmo(0);
 
             // Remove all team logos
-            RemoveLogos();
+            TeamManager.RemoveLogos();
 
             // Push nametag updates
             FusionOverrides.ForceUpdateOverrides();
@@ -379,17 +347,6 @@ namespace LabFusion.SDK.Gamemodes
             // Reset overrides
             FusionPlayer.ClearAvatarOverride();
             FusionPlayer.ClearPlayerVitality();
-        }
-
-        public float GetTimeElapsed()
-        {
-            return Time.realtimeSinceStartup - _timeOfStart;
-        }
-
-        public float GetMinutesLeft()
-        {
-            float elapsed = GetTimeElapsed();
-            return _totalMinutes - (elapsed / 60f);
         }
 
         protected override void OnUpdate()
@@ -430,7 +387,7 @@ namespace LabFusion.SDK.Gamemodes
             foreach (var logo in TeamManager.LogoInstances.Values)
             {
                 // Change visibility
-                bool visible = logo.team == _localTeam;
+                bool visible = logo.team == TeamManager.LocalTeam;
                 if (visible != logo.IsShown())
                 {
                     logo.Toggle(visible);
@@ -493,6 +450,40 @@ namespace LabFusion.SDK.Gamemodes
                 Team team = TeamManager.GetTeamFromValue(value);
                 TeamManager.OnRequestTeamChanged(key, value, team);
             }
+        }
+
+        private int GetRewardedBits()
+        {
+            // Change the max bit count based on player count
+            int playerCount = PlayerIdManager.PlayerCount - 1;
+
+            // 10 and 100 are the min and max values for the max bit count
+            float playerPercent = (float)playerCount / 4f;
+            int maxBits = Mathf.FloorToInt(Mathf.Lerp(_minPlayerBits, _maxPlayerBits, playerPercent));
+            int maxRand = maxBits / 10;
+
+            // Get the scores
+            int score = TeamManager.GetScoreFromTeam(TeamManager.LocalTeam);
+            int totalScore = TeamManager.GetTotalScore();
+
+            // Prevent divide by 0
+            if (totalScore <= 0)
+                return 0;
+
+            float percent = Mathf.Clamp01((float)score / (float)totalScore);
+            int reward = Mathf.FloorToInt((float)maxBits * percent);
+
+            // Add randomness
+            reward += UnityEngine.Random.Range(-maxRand, maxRand);
+
+            // Make sure the reward isn't invalid
+            if (reward.IsNaN())
+            {
+                FusionLogger.ErrorLine("Prevented attempt to give invalid bit reward. Please notify a Fusion developer and send them your log.");
+                return 0;
+            }
+
+            return reward;
         }
     }
 }

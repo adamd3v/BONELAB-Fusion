@@ -11,6 +11,9 @@ namespace LabFusion.SDK.Gamemodes
 {
     public class TeamManager
     {
+        public Team LastTeam { get => _localTeam; }
+        public Team LocalTeam { get => _localTeam; }
+
         public IReadOnlyList<Team> Teams { get => _teams.AsReadOnly(); }
 
         public readonly Dictionary<PlayerId, TeamLogoInstance> LogoInstances = new Dictionary<PlayerId, TeamLogoInstance>();
@@ -19,8 +22,6 @@ namespace LabFusion.SDK.Gamemodes
 
         private Team _lastTeam;
         private Team _localTeam;
-
-        
 
         public void AddTeam(Team team)
         {
@@ -69,7 +70,7 @@ namespace LabFusion.SDK.Gamemodes
             Team newTeam = _lastTeam;
 
             // Assign a random team
-            newTeam = _teams[UnityEngine.Random.Range(0, _teams.Count)];
+            newTeam = _teams[Random.Range(0, _teams.Count)];
 
             // Assign it
             SetTeam(id, newTeam);
@@ -112,77 +113,14 @@ namespace LabFusion.SDK.Gamemodes
             }
         }
 
-        public Team GetTeam(string teamName)
-        {
-            foreach (Team team in _teams)
-            {
-                if (team.TeamName == teamName)
-                {
-                    return team;
-                }
-            }
-
-            return null;
-        }
-
-        public void OnRequestTeamPoint(string key, string value, int score)
-        {
-            var ourKey = GetScoreKey(_localTeam);
-
-            if (ourKey == key && score != 0)
-            {
-                FusionNotifier.Send(new FusionNotification()
-                {
-                    title = "Team Deathmatch Point",
-                    showTitleOnPopup = true,
-                    message = $"{_localTeam.TeamName}'s score is {value}!",
-                    isMenuItem = false,
-                    isPopup = true,
-                    popupLength = 0.7f,
-                });
-            }
-        }
-
-        public void OnRequestTeamChanged(string key, string value, Team team)
-        {
-            // Find the player that changed
-            foreach (var playerId in PlayerIdManager.PlayerIds)
-            {
-                var playerKey = GetTeamMemberKey(playerId);
-
-                if (playerKey == key)
-                {
-                    // Check who this is
-                    if (playerId.IsSelf)
-                    {
-                        OnTeamReceived(team);
-                    }
-                    else if (team != null)
-                    {
-                        AddLogo(playerId, team);
-                    }
-
-                    // Push nametag updates
-                    FusionOverrides.ForceUpdateOverrides();
-
-                    break;
-                }
-            }
-        }
-
-        public List<Team> SortTeamsByScore()
-        {
-            return _teams.OrderBy(team => GetScoreFromTeam(team)).Reverse().ToList();
-        }
-
         public void SetScore(Team team, int score)
         {
-            TrySetMetadata(GetScoreKey(team), score.ToString());
+            TeamDeathmatch.Instance.TrySetMetadata(GetScoreKey(team), score.ToString());
         }
 
         public int GetScoreFromTeam(Team team)
         {
-            TryGetMetadata(GetScoreKey(team), out string teamKey);
+            TeamDeathmatch.Instance.TryGetMetadata(GetScoreKey(team), out string teamKey);
             int score = int.Parse(teamKey);
 
             return score;
@@ -200,7 +138,7 @@ namespace LabFusion.SDK.Gamemodes
             return accumulatedScore;
         }
 
-        protected void IncrementScore(Team team)
+        public void IncrementScore(Team team)
         {
             var currentScore = GetScoreFromTeam(team);
             SetScore(team, currentScore + 1);
@@ -248,7 +186,7 @@ namespace LabFusion.SDK.Gamemodes
             }
         }
 
-        protected string GetTeamStatus(Team winner)
+        public string GetTeamStatus(Team winner)
         {
             if (_localTeam == winner)
             {
@@ -317,25 +255,70 @@ namespace LabFusion.SDK.Gamemodes
             FusionSceneManager.HookOnLevelLoad(() => InitializeTeamSpawns(team));
         }
 
-        protected void OnTeamVictory(Team team)
+        public void OnTeamVictory(Team team)
         {
-            AudioClip randomChoice = UnityEngine.Random.Range(0, 4) % 2 == 0 ? FusionContentLoader.LavaGangVictory : FusionContentLoader.SabrelakeVictory;
+            AudioClip randomChoice = Random.Range(0, 4) % 2 == 0 ? FusionContentLoader.LavaGangVictory : FusionContentLoader.SabrelakeVictory;
 
             AudioClip winMusic = team.WinMusic != null ? team.WinMusic : randomChoice;
             FusionAudio.Play2D(winMusic, TeamDeathmatch.DefaultMusicVolume);
         }
 
-        protected void OnTeamLost(Team team)
+        public void OnTeamLost(Team team)
         {
-            AudioClip randomChoice = UnityEngine.Random.Range(0, 4) % 2 == 0 ? FusionContentLoader.LavaGangFailure : FusionContentLoader.SabrelakeFailure;
+            AudioClip randomChoice = Random.Range(0, 4) % 2 == 0 ? FusionContentLoader.LavaGangFailure : FusionContentLoader.SabrelakeFailure;
 
             AudioClip lossMusic = team.LossMusic != null ? team.LossMusic : randomChoice;
             FusionAudio.Play2D(lossMusic, TeamDeathmatch.DefaultMusicVolume);
         }
 
-        protected void OnTeamTied()
+        public void OnTeamTied()
         {
             FusionAudio.Play2D(FusionContentLoader.DMTie, TeamDeathmatch.DefaultMusicVolume);
+        }
+
+        public void OnRequestTeamPoint(string key, string value, int score)
+        {
+            var ourKey = GetScoreKey(_localTeam);
+
+            if (ourKey == key && score != 0)
+            {
+                FusionNotifier.Send(new FusionNotification()
+                {
+                    title = "Team Deathmatch Point",
+                    showTitleOnPopup = true,
+                    message = $"{_localTeam.TeamName}'s score is {value}!",
+                    isMenuItem = false,
+                    isPopup = true,
+                    popupLength = 0.7f,
+                });
+            }
+        }
+
+        public void OnRequestTeamChanged(string key, string value, Team team)
+        {
+            // Find the player that changed
+            foreach (var playerId in PlayerIdManager.PlayerIds)
+            {
+                var playerKey = GetTeamMemberKey(playerId);
+
+                if (playerKey == key)
+                {
+                    // Check who this is
+                    if (playerId.IsSelf)
+                    {
+                        OnTeamReceived(team);
+                    }
+                    else if (team != null)
+                    {
+                        AddLogo(playerId, team);
+                    }
+
+                    // Push nametag updates
+                    FusionOverrides.ForceUpdateOverrides();
+
+                    break;
+                }
+            }
         }
 
         public void SetTeam(PlayerId id, Team team)
@@ -345,7 +328,20 @@ namespace LabFusion.SDK.Gamemodes
                 return;
             }
 
-            TrySetMetadata(GetTeamMemberKey(id), team.TeamName);
+            TeamDeathmatch.Instance.TrySetMetadata(GetTeamMemberKey(id), team.TeamName);
+        }
+
+        public Team GetTeam(string teamName)
+        {
+            foreach (Team team in _teams)
+            {
+                if (team.TeamName == teamName)
+                {
+                    return team;
+                }
+            }
+
+            return null;
         }
 
         public Team GetTeamFromValue(string nameValue)
@@ -363,7 +359,7 @@ namespace LabFusion.SDK.Gamemodes
 
         public Team GetTeamFromMember(PlayerId id)
         {
-            TryGetMetadata(GetTeamMemberKey(id), out string teamName);
+            TeamDeathmatch.Instance.TryGetMetadata(GetTeamMemberKey(id), out string teamName);
 
             foreach (Team team in _teams)
             {
@@ -374,6 +370,11 @@ namespace LabFusion.SDK.Gamemodes
             }
 
             return null;
+        }
+
+        public List<Team> SortTeamsByScore()
+        {
+            return _teams.OrderBy(team => GetScoreFromTeam(team)).Reverse().ToList();
         }
 
         protected string GetScoreKey(Team team)
