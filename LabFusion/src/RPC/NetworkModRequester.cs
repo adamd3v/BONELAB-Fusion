@@ -80,13 +80,13 @@ public static class NetworkModRequester
         {
             elapsed += TimeUtilities.DeltaTime;
             yield return null;
-        }
+        }   
 
         // No callback means this request timed out
         if (!receivedCallback)
         {
 #if DEBUG
-            FusionLogger.Warn($"Mod request for {installInfo.barcode} timed out.");
+            FusionLogger.Warn($"Mod request for {installInfo.Barcode} timed out.");
 #endif
 
             installInfo.FinishDownloadCallback?.Invoke(DownloadCallbackInfo.FailedCallback);
